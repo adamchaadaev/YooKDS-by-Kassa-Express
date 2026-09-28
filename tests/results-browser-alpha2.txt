@@ -1,0 +1,23 @@
+PASS initial two-column board with stopped-order warning elapsed=0.8s
+PASS 390px mobile layout has no horizontal overflow elapsed=0.9s
+PASS unchanged poll retains card DOM elapsed=1.2s
+PASS two browser pages observe same server-confirmed ready state through polling elapsed=4.7s
+PASS untrusted add-on content rendered as text, not executable HTML elapsed=5.9s
+PASS changed-order acknowledgement shown before ready elapsed=6.9s
+PASS 409 conflict never optimistically removes an order elapsed=8.9s
+PASS failed refresh retains visible cards but locks actions elapsed=9.9s
+PASS successful reconnect restores actions elapsed=11.9s
+PASS handover moves order to visible history elapsed=15.9s
+PASS completed order cannot be restored only in KDS elapsed=15.9s
+PASS external Woo reopening returns same order for review elapsed=17.9s
+PASS history query sent to server and pagination resets elapsed=21.9s
+PASS settings save without optional Woo completion switch elapsed=24.9s
+PASS dark theme toggles elapsed=27.8s
+PASS custom order fields visible on cards elapsed=27.8s
+PASS order link uses real Woo ID rather than short display number elapsed=27.9s
+PASS local QR SVG and NX link generation work without external service elapsed=30.9s
+PASS cached or wrong-source order feeds rejected, never replaced with demo data elapsed=33.9s
+PASS unpaid handover requires an explicit user confirmation elapsed=37.0s
+PASS no JavaScript page errors throughout browser suite elapsed=37.0s
+
+21 Chromium browser checks passed with an offline mocked fetch boundary.

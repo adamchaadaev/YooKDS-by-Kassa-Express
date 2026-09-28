@@ -1,0 +1,7 @@
+YooKDS for WooCommerce
+Original scaffold: Ninja Nuts AB, adamchaadaev/YooKDS-by-Kassa-Express,
+main commit a111cc489f8e2cec1ffa4210db3dc93c5845cdda.
+Plugin source and this development version: GPL-2.0-or-later, as declared by
+that scaffold. The existing repository-level LICENSE is not modified.
+UI organization follows the author's supplied YooKDS snippets; overlapping
+runtime patches and embedded personal contact details are not included.

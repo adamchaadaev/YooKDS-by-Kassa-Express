@@ -1,0 +1,22 @@
+dist/
+__pycache__/
+*.pyc
+tests/fixtures/board.html
+.DS_Store
+__MACOSX/
+
+# Never commit site data or credentials.
+.env
+.env.*
+!.env.example
+wp-config.php
+*.sql
+*.sqlite
+*.db
+*.log
+.auth/
+.secrets/
+node_modules/
+wordpress/
+wp-content/uploads/
+private-diagnostics/

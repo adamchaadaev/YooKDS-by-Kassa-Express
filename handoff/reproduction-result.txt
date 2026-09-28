@@ -1,0 +1,5 @@
+REPRODUCED with WP/WC doubles, NOT the user's store.
+Two open orders: one readable, one invalid workflow value.
+Entire board throws invalid_workflow (HTTP 422).
+The readable order is not returned to the browser.
+This demonstrates a failure path, not the cause of the reported missing ticket.

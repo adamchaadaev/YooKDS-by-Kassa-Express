@@ -1,0 +1,2 @@
+4 QR boundary/output-safety assertions passed.
+176 exact QR matrix comparisons passed: versions 1–20, masks 0–7, UTF-8 and NX link.

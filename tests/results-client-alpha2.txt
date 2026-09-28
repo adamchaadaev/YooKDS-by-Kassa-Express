@@ -1,0 +1,37 @@
+PASS normal REST URL
+PASS subdirectory REST URL
+PASS plain permalink route retained
+PASS search special characters roundtrip
+PASS page parameter retained
+PASS genuine contract accepted
+PASS empty response stays empty
+PASS reject mismatched source
+PASS reject mismatched schema
+PASS reject mismatched site
+PASS reject mismatched version
+PASS reject mismatched read_id
+PASS reject active completed
+PASS reject active cancelled
+PASS reject active failed
+PASS reject active refunded
+PASS reject active checkout-draft
+PASS reject duplicate full IDs
+PASS short numbers can collide without collapsing identities
+PASS reject short display number used as string ID
+PASS reject missing items
+PASS reject missing options structure
+PASS archived real order can be shown only in history
+PASS custom fields line parser
+PASS blank custom fields means none
+PASS reject incomplete custom field line
+PASS NX preserves menu query and fragment
+PASS NX table infers QR channel
+PASS NX removing old table from link
+PASS NX invalid URL scheme rejected
+PASS receipt display #27080
+PASS receipt display 7
+PASS receipt display 0000
+PASS receipt display 12345
+PASS receipt display abc
+
+35 JavaScript checks passed.
