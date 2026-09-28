@@ -166,10 +166,14 @@ final class Orders {
         if (count($ids) > 500) {
             throw new Problem('capacity', 'Det finns fler än 500 öppna WooCommerce-ordrar. Vyn är inte komplett; hantera äldre öppna ordrar i WooCommerce först.', 503);
         }
-        $rows = [];
+        $rows = []; $issues = [];
         foreach ($ids as $id) {
             try { $row = $this->sync($id); }
-            catch (Problem $error) { if ($error->status === 404) { continue; } throw $error; }
+            catch (\Throwable $error) {
+                if ($error instanceof Problem && $error->status === 404) { continue; }
+                $issues[] = ['id'=>$id, 'code'=>$error instanceof Problem ? $error->slug : 'unreadable_order'];
+                continue;
+            }
             // Recheck after loading: the status may change between query and snapshot.
             if ($row && in_array($row['woo_status'], $settings['receive_statuses'], true) &&
                 in_array($row['state'], ['preparing', 'ready', 'blocked'], true)) {
@@ -179,7 +183,7 @@ final class Orders {
         usort($rows, static fn($a, $b) => ($a['created_at'] <=> $b['created_at']) ?: ($a['id'] <=> $b['id']));
         return array_merge(self::source(), [
             'orders' => $rows, 'server_time' => time(), 'poll_seconds' => $settings['poll_seconds'],
-            'backfill_remaining' => 0,
+            'backfill_remaining' => 0, 'issues'=>$issues, 'complete'=>!$issues,
         ]);
     }
 
