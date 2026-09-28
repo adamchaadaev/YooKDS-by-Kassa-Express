@@ -1,59 +1,17 @@
-# YooKDS 1.1.0-alpha.2 — testrapport
+# Testresultat — 1.2.0-beta.1
 
-Datum: 2026-09-28. **Utvecklingsversion, inte godkänd för skarp servering.**
+Verifierat 2026-09-29 i en isolerad lokal Docker-installation. Ingen driftbutik ändrades.
 
-## Utfört i den här arbetsmiljön
+- WordPress 7.1.2, WooCommerce 11.1.2, PHP 8.2, MariaDB 11.
+- PHP-syntax: samtliga 24 PHP-filer i pluginet passerade.
+- 139 PHP-kontroller med uttryckliga WordPress/WooCommerce-testdubblar passerade.
+- 38 JavaScript-kontroller passerade, inklusive negativa externa ID:n, kollisioner, egna mottagningsstatusar och URL-/QR-länklogik.
+- 17 verkliga WooCommerce-/databaskontroller passerade med HPOS av, och 17 med HPOS på. Mottagning, tillval, statusändringar, stale revisions, idempotens, utlämning och historik ingår. Ett HPOS-omprov fick tillfällig låskonflikt med den samtidigt pollande webbläsaren; sluttestet kördes med pollningen pausad. Låsfelet rapporterades, inte som framgång.
+- 55 premiumkontroller passerade med verklig WordPress/WooCommerce/databas och **simulerade externa HTTP-svar**. Kryptering, behörighet, Wolt-signatur och tokenrotation, Foodora HS512-JWT, restaurangorder/tillval/ändringar/avbokningar, dubbletter, misslyckad Klar, BizPrint-signering, skrivare, kvittens, receptlänk, jobbstatus och osäker utskrift ingår.
+- Inloggad lokal webbläsare hämtade den riktiga REST-orderlistan. Woo-, Foodora- och Wolt-kort samt anslutningsformulär inspekterades. Förhandsbilden använder endast syntetiska lokala testordrar; dessa rensades efter granskning. Ingen heltäckande automatiserad webbläsarsvit eller fysisk pekskärmsprovning påstås.
 
-| Kontroll | Resultat | Testgräns |
-|---|---|---|
-| PHP-domän, service, NX, nummer och tillvalsparser | 139 godkända kontroller | Explicita WordPress/WooCommerce/databas-testdubblar; inte en installerad butik |
-| JavaScript | 35 godkända kontroller | URL, svarskontrakt, fullständiga ID:n, statusfilter, fältkonfiguration och kvittonummer |
-| Chromium | 21 godkända kontroller | Riktig webbläsare och produktions-JS/CSS/template, men simulerade REST-svar |
-| QR-algoritm | 176 exakta matrisjämförelser samt 4 gräns-/utdatakontroller | Jämförelse med Python qrcode 8.2: ECC M, byte mode, versioner 1–20, mask 0–7, UTF-8 och NX-länk |
-| PHP-/JS-syntax | Godkänd | Samtliga PHP-filer och JS-filer i denna källkod |
-| Paketgräns | Godkänd | Installationspaketet innehåller pluginet, inte testdubblar, testordrar eller browser-fixtures |
+## Inte verifierat i denna leverans
 
-Testloggar och körbara tester finns i källkods-ZIP:ens `tests/`. De ska inte laddas
-upp som webbplatsinnehåll eller köras i produktion. Inga kundwebbplatser eller
-GitHub-repositories ändrades vid denna korrigering.
+Riktiga Foodora/Wolt-partnerkonton, leverantörsgodkännande, skarpa webhook-leveranser, fysisk BizPrint-skrivare, verkliga betalningar, butikens WAPF/Pro/YITH-versioner, komplett Checkout Block/QR-till-order-flöde, installationer på samtliga äldre minimiversioner eller full belastnings-/tillgänglighetsrevision.
 
-## Viktiga verifierade kodfall
-
-En tom datakälla ger noll kort; inget i driftkoden skapar exempelordrar. Öppna
-Woo-order-ID:n hämtas direkt utan krav på tidigare KDS-index. Samma sista fyra siffror
-på två ordrar ändrar inte deras identitet. Klar ändrar bara köksstatus; Utlämnad
-begär WooCommerce `completed` och kräver bekräftad lagring. Misslyckad WC-skrivning
-får inte lokalt kvitteras som lyckad utlämning. Opålitligt/kachat/felaktigt ordersvar
-avvisas; senaste lästa data markeras inaktuella och knappar låses.
-
-WAPF-parsern har testats med sparad `_wapf_meta` som fält-ID → label/value/raw,
-inklusive listor, upprepade val, JSON-representation, tomma val och värdena 0/false.
-Okänd representation blir varning/stopp, inte påhittade tillval. Vanliga synliga
-Woo-radmetadata läses först; WAPF-fallback dedupliceras mot dessa.
-Konfigurerade order-/order­radsfält och produktfältssnapshot har isolerade tester.
-Testerna omfattar NX-sessionens byten/utgång/checkout-hookregistrering — inte en
-verklig betalningsleverantör eller genomförd browser-checkout.
-
-## INTE verifierat här
-
-Ingen installerad WordPress/WooCommerce-butik, ingen MySQL/MariaDB-server, inga
-verkliga HTTP-inloggningscookies, inget installerat WAPF/Pro/YITH och ingen fysisk
-QR-skanning/skrivare användes. HPOS på/av, Checkout Block, klassisk checkout och
-butikens tillvalsformat måste integrationstestas med butikens faktiska versioner.
-Den medföljande `tests/integration.php` är syntaxkontrollerad men **inte körd**.
-
-139 tester betyder därför inte 100 % verifierad synk i användarens butik. Inte heller
-är QR-matrisjämförelse bevis för att alla telefoner läser alla utskriftsstorlekar.
-
-## Rapporterade påhittade kort i alpha.1
-
-Den granskade installations-ZIP:en för alpha.1 innehöll ingen generator eller
-reservlista för demoordrar. Tidigare förhandsvisningsbilder och separata browsertester
-använde uttalade testdata. Utan den aktuella sidans URL, laddade skript och serversvar
-är orsaken till de rapporterade korten i butiken inte fastställd.
-
-Alpha.2 tar bort indexberoendet för aktiva ordrar och den avstängda standardkopplingen
-vid utlämning. Varje kort visar Woo-ID och en orderlänk; sidfoten visar butikens adress.
-Det går därmed att jämföra varje kort mot sin verkliga WooCommerce-order. Testordrar
-som faktiskt redan finns i WooCommerce går inte att skilja från andra ordrar utan
-specifik märkning och filtreras därför inte bort på chans.
+Kör partnernas onboarding och acceptansprov i testmiljö före drift. Denna release benämns därför beta. Tidigare alpha.2-resultat under projektets tests/ och handoff/ är historisk dokumentation, inte ersättning för dessa prov.

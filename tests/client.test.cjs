@@ -33,4 +33,7 @@ test('NX table infers QR channel',()=>assert.equal(new URL(nxLink('https://shop.
 test('NX removing old table from link',()=>assert.equal(new URL(nxLink('https://shop.test/?nx_table=7',{channel:'web'})).searchParams.has('nx_table'),false));
 test('NX invalid URL scheme rejected',()=>assert.throws(()=>nxLink('javascript:alert(1)',{})));
 for(const [input,expected] of [['#27080','#7080'],['7','#0007'],['0000','#0000'],['12345','#2345'],['abc','']])test('receipt display '+input,()=>assert.equal(receipt.format(input),expected));
+test('external and Woo numeric IDs remain separate',()=>{const d=feed();d.orders.push({...order,id:-27080,kind:'external',provider:'wolt'});assert.equal(valid(d).length,2);});
+test('negative ID requires known external provider',()=>{const d=feed();d.orders[0].id=-1;assert.throws(()=>valid(d));});
+test('external tickets independent of Woo receive status selection',()=>{const d=feed();d.orders=[{...order,id:-1,kind:'external',provider:'foodora'}];assert.equal(validateFeed(d,{...boot,settings:{receive_statuses:['on-hold']}},token,true).length,1);});
 console.log('\n'+count+' JavaScript checks passed.');

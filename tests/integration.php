@@ -20,6 +20,7 @@ if (wc_get_orders(['type'=>'shop_order','status'=>array_keys(wc_get_order_status
     throw new RuntimeException('Use an empty disposable WooCommerce test installation, not your working staging store.');
 }
 $oldSettings = get_option(YooKDS\Settings::KEY, '__not_set__');
+add_filter('pre_wp_mail', '__return_true');
 $created = [];
 $passed = 0;
 $check = static function ($ok, $message) use (&$passed) {

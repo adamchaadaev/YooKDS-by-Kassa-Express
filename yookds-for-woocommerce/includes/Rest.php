@@ -20,7 +20,7 @@ final class Rest {
         register_rest_route('yookds/v1', '/orders', [
             'methods' => 'GET', 'permission_callback' => $permission,
             'args' => ['read_id' => ['required'=>true, 'type'=>'string', 'pattern'=>'^[a-f0-9]{32}$']],
-            'callback' => function ($request) { return $this->respond(fn() => array_merge($this->orders->board(), ['read_id' => (string) $request->get_param('read_id')])); },
+            'callback' => function ($request) { return $this->respond(fn() => array_merge($this->board(), ['read_id' => (string) $request->get_param('read_id')])); },
         ]);
         register_rest_route('yookds/v1', '/orders/(?P<id>[1-9][0-9]*)/actions', [
             'methods' => 'POST', 'permission_callback' => $permission,
@@ -62,6 +62,18 @@ final class Rest {
             'methods' => 'GET', 'permission_callback' => $permission,
             'callback' => function () { return $this->respond(fn() => array_merge(Orders::source(), ['server_time' => time(), 'settings' => Settings::get()])); },
         ]);
+    }
+
+    private function board(): array {
+        $board = $this->orders->board();
+        try {
+            $external = ExternalOrders::board();
+            $board['orders'] = array_merge($board['orders'], $external['orders']);
+            $board['issues'] = array_merge($board['issues'], $external['issues']);
+        } catch (\Throwable $error) { $board['issues'][] = ['id'=>0, 'code'=>'external_unavailable']; }
+        $board['complete'] = !$board['issues'];
+        usort($board['orders'], static fn($a,$b) => ($a['created_at'] <=> $b['created_at']) ?: ($a['id'] <=> $b['id']));
+        return $board;
     }
 
     private function respond(callable $callback): \WP_REST_Response {

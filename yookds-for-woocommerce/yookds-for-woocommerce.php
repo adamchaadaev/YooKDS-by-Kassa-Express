@@ -2,9 +2,9 @@
 /**
  * Plugin Name: YooKDS for WooCommerce
  * Plugin URI: https://github.com/adamchaadaev/YooKDS-by-Kassa-Express
- * Description: Testversion: gemensam köksvy, historik och WooCommerce-baserat orderflöde.
+ * Description: Köksskärm för WooCommerce med BizPrint, Foodora och Wolt.
  * Author: Ninja Nuts AB / Kassa Express
- * Version: 1.1.0-alpha.2
+ * Version: 1.2.0-beta.1
  * Requires at least: 6.5
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce
@@ -14,7 +14,7 @@
  */
 if (!defined('ABSPATH')) { exit; }
 if (defined('YOOKDS_PLUGIN_FILE')) { return; }
-define('YOOKDS_VERSION', '1.1.0-alpha.2');
+define('YOOKDS_VERSION', '1.2.0-beta.1');
 define('YOOKDS_PLUGIN_FILE', __FILE__);
 define('YOOKDS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('YOOKDS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -40,7 +40,7 @@ add_action('plugins_loaded', static function (): void {
     foreach (['YOOKDS_SNIPPET_LOADED', 'YOOKDS_ALL_IN_ONE_V32', 'YOOKDS_ARCHIVE_PATCH_V1'] as $legacy) {
         if (defined($legacy)) {
             add_action('admin_notices', static function (): void {
-                echo '<div class="notice notice-error"><p>Inaktivera äldre YooKDS-snippets innan testpluginet används. Inga äldre data har raderats.</p></div>';
+                echo '<div class="notice notice-error"><p>Inaktivera äldre YooKDS-snippets innan tillägget används. Inga äldre data har raderats.</p></div>';
             });
             return;
         }
@@ -51,4 +51,13 @@ register_activation_hook(__FILE__, static function (): void {
     \YooKDS\Shortcodes::route();
     flush_rewrite_rules(false);
 });
-register_deactivation_hook(__FILE__, static function (): void { flush_rewrite_rules(false); });
+register_deactivation_hook(__FILE__, static function (): void {
+    wp_clear_scheduled_hook('yookds_external_maintenance');
+    wp_clear_scheduled_hook('yookds_fetch_external');
+    wp_clear_scheduled_hook('yookds_auto_print');
+    if (function_exists('as_unschedule_all_actions')) {
+        as_unschedule_all_actions('yookds_fetch_external', null, 'yookds');
+        as_unschedule_all_actions('yookds_auto_print', null, 'yookds');
+    }
+    flush_rewrite_rules(false);
+});

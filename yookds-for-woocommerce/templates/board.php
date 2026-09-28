@@ -9,13 +9,14 @@ if (!defined('ABSPATH')) { exit; }
             <button type="button" data-ui="refresh">Uppdatera</button>
             <button type="button" data-ui="theme" aria-label="Växla ljust och mörkt tema">◐ Tema</button>
             <button type="button" data-ui="sound" aria-pressed="false">Ljud av</button>
-            <?php if (current_user_can('manage_woocommerce')) : ?><button type="button" data-ui="links">QR-länkar</button><button type="button" data-ui="settings">Inställningar</button><?php endif; ?>
+            <?php if (current_user_can('manage_woocommerce')) : ?><button type="button" data-ui="integrations">Integrationer</button><button type="button" data-ui="links">QR-länkar</button><button type="button" data-ui="settings">Inställningar</button><?php endif; ?>
             <button type="button" data-ui="fullscreen" aria-label="Fullskärm">⛶</button>
         </nav>
     </header>
     <div class="kdsu-syncbar"><span data-slot="connection" role="status">Ansluter till WooCommerce…</span><span data-slot="last-sync"></span></div>
     <div class="kdsu-error" data-slot="error" role="alert" hidden></div>
     <div class="kdsu-warning" data-slot="backfill" role="status" hidden></div>
+    <div class="kdsu-feedback" data-slot="feedback" role="status" hidden></div>
     <div class="kdsu-stats" data-slot="stats"></div>
     <nav class="kdsu-filters" data-slot="filters" aria-label="Filtrera beställningskanal"></nav>
     <nav class="kdsu-filters" data-slot="origins" aria-label="Filtrera kassa"></nav>
@@ -28,11 +29,12 @@ if (!defined('ABSPATH')) { exit; }
             <form data-ui="search"><label>Period <select name="range"><option value="today">Idag</option><option value="yesterday">Igår</option><option value="week">Senaste 7 dagarna</option><option value="month">Denna månad</option></select></label>
             <label>Sök <input name="q" type="search" maxlength="100" placeholder="Order, bord, vara eller notering"></label><button type="submit">Sök</button></form>
         </div>
-        <div class="kdsu-archive-list" data-slot="archive"></div>
+        <div class="kdsu-archive-list" data-slot="archive"></div><h3 class="kdsu-external-archive-title">Externa beställningar</h3><div class="kdsu-archive-list" data-slot="external-archive"></div>
         <nav class="kdsu-pager" aria-label="Historiksidor"><button type="button" data-ui="prev">Föregående</button><span data-slot="page">Sida 1 av 1</span><button type="button" data-ui="next">Nästa</button></nav>
     </section>
-    <footer class="kdsu-foot">Endast öppna WooCommerce-ordrar · Utlämnad = Färdigbehandlad · <?php echo esc_html(home_url('/')); ?></footer>
+    <footer class="kdsu-foot">WooCommerce + externa beställningar · Ett gemensamt köksflöde · <?php echo esc_html(home_url('/')); ?></footer>
     <?php if (current_user_can('manage_woocommerce')) : ?>
+    <?php include YOOKDS_PLUGIN_DIR . 'templates/integrations.php'; ?>
     <dialog class="kdsu-dialog" data-slot="settings-dialog" aria-labelledby="yookds-settings-title">
         <form data-ui="settings-form"><h2 id="yookds-settings-title">Inställningar</h2>
         <p>En gemensam köksvy med NX-kanaler, kassa och bord. Separat klarmarkering per köksstation ingår inte ännu.</p>

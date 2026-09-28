@@ -1,40 +1,7 @@
-# YooKDS by Kassa Express — alpha.2 development baseline
+# YooKDS for WooCommerce — 1.2.0-beta.1
 
-**Kända blockerande fel är rapporterade: ny Woo-order saknas i KDS och QR-flödet
-behöver felsökas. Detta projekt är inte en godkänd release.**
+Köksskärm med Förbereds, Klara och Historik. WooCommerce, Foodora Restaurant POS och Wolt Marketplace POS i ett flöde, tydliga varumärkesfärger, BizPrint API-utskrift och Uber Eats märkt Under utveckling.
 
-Börja med [START-HERE.md](START-HERE.md), [AGENTS.md](AGENTS.md) och
-[den prioriterade felsökningsuppgiften](handoff/TASK.md).
+Installera ZIP från dist efter byggning med `python3 tools/build.py`. Läs [installationsguiden](yookds-for-woocommerce/docs/PREMIUM-GUIDE.md) och [testresultaten](yookds-for-woocommerce/docs/TEST-RESULTS.md). Detta är en testad beta, inte verifierad leverantörscertifiering. Partneråtkomst och fysisk utskrift återstår att provas med riktiga konton.
 
-Pluginets källkod finns i `yookds-for-woocommerce/`. Den motsvarar senaste levererade
-alpha.2, inte den äldre ZIP som låg på GitHub vid senaste kontrollen. Driftkoden är
-oförändrad i den här överlämningen. Nya filer innehåller överlämning, en reproduktion
-av ett fel med testdubblar samt ett WP-CLI-diagnosskript utan orderskrivningar.
-
-GitHub-uppladdningen från chatten nekades (403). Inget är pushat där.
-
-## Utveckling
-
-```sh
-php tests/compat.php
-node tests/client.test.cjs
-php handoff/reproduce-board-abort.php
-python3 tools/build.py
-```
-
-De vanliga testerna använder testdubblar. Full integration kräver en verklig,
-isolerad WordPress/WooCommerce-butik och databas. Läs säkerhetsvarningarna i
-`tests/integration.php` och `yookds-for-woocommerce/docs/TESTPLAN.md` först.
-
-`tools/diagnose-woo.php` läser en auktoriserad WordPress-installations diagnostik
-via WP-CLI. Det kör inte KDS-board och ändrar inte orderdata eller inställningar.
-Håll utskriften privat. Det är syntaxkontrollerat, inte kört i kundens butik.
-
-Källkodens tester får aldrig användas som levande köksskärm. Lägg inte upp
-WordPress-konfiguration, kundorderexporter, cookies, API-nycklar eller produktionsloggar.
-
-## Bevara
-
-Förbereds/Klara/Historik, Woo-ordern som datakälla, Utlämnad = completed på samma
-fullständiga ID, fyrsiffriga visningsnummer, WAPF/custom fields och NX/QR.
-Detaljerade acceptanskrav finns i AGENTS.md och handoff/TASK.md.
+Källan ligger i yookds-for-woocommerce/. Tester och handoff-material är separata och ingår inte i installationsfilen. Äldre handoff-dokument beskriver alpha.2-baslinjen och är historik. API-nycklar eller butiksexporter ska aldrig läggas i Git.

@@ -1,6 +1,7 @@
 /* YooKDS: server-confirmed state; no customer data or pending writes in localStorage. */
 (function () {
     'use strict';
+    const printedOrders = new Set();
     function endpoint(base, path, params = {}) {
         const url = new URL(base);
         if (url.searchParams.has('rest_route')) {
@@ -18,11 +19,11 @@
         if (!Array.isArray(data.orders) || !Number.isFinite(data.server_time)) throw new Error('Ofullständigt WooCommerce-svar.');
         const ids=new Set();
         for (const row of data.orders) {
-            if (!row || !Number.isSafeInteger(row.id) || row.id<1 || ids.has(row.id) ||
+            if (!row || !Number.isSafeInteger(row.id) || (row.id===0 || (row.id<0 && (!['wolt','foodora'].includes(row.provider) || row.kind!=='external'))) || ids.has(row.id) ||
                 !Array.isArray(row.items) || !Array.isArray(row.shipping) || typeof row.order_number!=='string' ||
                 !Number.isInteger(row.revision) || typeof row.token!=='string') throw new Error('Ogiltig eller duplicerad WooCommerce-order. Inga åtgärder tillåts.');
             ids.add(row.id);
-            if (active && (!boot.settings.receive_statuses.includes(row.woo_status) || !['preparing','ready','blocked'].includes(row.state))) {
+            if (active && (!(row.kind==='external' ? row.woo_status==='processing' : boot.settings.receive_statuses.includes(row.woo_status)) || !['preparing','ready','blocked'].includes(row.state))) {
                 throw new Error('Servern försökte visa en stängd order i den aktiva vyn. Ladda om köksskärmen.');
             }
             for (const item of row.items) if (!Array.isArray(item.details)) throw new Error('Orderns tillval kunde inte läsas.');
@@ -61,7 +62,7 @@
             channel: '', origin: '', rows: new Map(), page: 1, max: 1, range: 'today', q: '',
             connected: false, lastSync: 0, serverDelta: 0, poll: boot.settings.poll_seconds,
             generation: 0, reading: null, mutating: false, timer: null, failures: 0, stopped: false,
-            readError: false, settings: boot.settings, sound: false, audio: null, seen: null,
+            readError: false, settings: boot.settings, sound: false, audio: null, seen: null, incomplete: false,
         };
         function el(tag, className, text) {
             const node = document.createElement(tag);
@@ -73,7 +74,7 @@
         function channelLabel(value) {
             const configured=S.settings.channels?.find(channel=>channel.id===value);
             if (configured) return configured.name;
-            return ({ web: 'Online', express: 'Express', table: 'QR / Bord', woocommerce: 'WooCommerce' })[value] || value || 'WooCommerce';
+            return ({ foodora: 'foodora', wolt: 'Wolt', ubereats: 'Uber Eats', web: 'Online', express: 'Express', table: 'QR / Bord', woocommerce: 'WooCommerce' })[value] || value || 'WooCommerce';
         }
         function clock(epoch) {
             if (!epoch) return '—';
@@ -83,10 +84,10 @@
         function stale() { return !S.connected || Date.now() - S.lastSync > Math.max(15000, S.poll * 3000); }
         function connectivity() {
             const bad = stale();
-            slot('connection').textContent = bad ? (S.stopped ? 'Sessionen har gått ut — ladda om och logga in' : 'Inte synkroniserad — åtgärder är låsta') : 'Synkroniserad med WooCommerce';
-            slot('connection').dataset.ok = String(!bad);
+            slot('connection').textContent = bad ? (S.stopped ? 'Sessionen har gått ut — ladda om och logga in' : 'Inte synkroniserad — åtgärder är låsta') : (S.incomplete ? 'Delvis synkroniserad — vissa ordrar behöver kontrolleras' : 'Köksvyn är uppdaterad');
+            slot('connection').dataset.ok = String(!bad && !S.incomplete);
             slot('last-sync').textContent = S.lastSync ? 'Senast bekräftat ' + clock((S.lastSync + S.serverDelta) / 1000) : '';
-            root.querySelectorAll('[data-command], [data-print]').forEach(button => { button.disabled = bad || S.mutating; });
+            root.querySelectorAll('[data-command], [data-print]').forEach(button => { button.disabled = bad || S.mutating || button.dataset.locked==='true'; });
         }
         async function request(path, params = {}, body = null, signal = undefined) {
             const response = await fetch(endpoint(boot.rest, path, params), {
@@ -117,6 +118,10 @@
             node.dataset.id = row.id;
             const channel=S.settings.channels?.find(channel=>channel.id===row.channel);
             if (channel && /^#[0-9a-f]{6}$/i.test(channel.color)) node.style.setProperty('--order-accent',channel.color);
+            if (row.kind==='external' && ['foodora','wolt'].includes(row.provider)) {
+                node.dataset.provider=row.provider;
+                const source=el('div','kdsu-source');source.append(el('strong','',channelLabel(row.provider)),el('span','','EXTERN BESTÄLLNING'));node.append(source);
+            }
             const badges = el('div', 'kdsu-badges');
             badges.append(el('span', 'kdsu-badge', channelLabel(row.channel)));
             if (row.origin) badges.append(el('span', 'kdsu-badge secondary', 'Kassa ' + row.origin));
@@ -126,8 +131,12 @@
             const title = el('div', 'kdsu-card-title');
             title.append(el('h3', '', '#' + row.order_number), el('time', '', clock(row.created_at)));
             node.append(title);
+            if (row.state!=='archived') {const age=el('div','kdsu-order-age');age.dataset.created=row.created_at;node.append(age);}
+            if (row.due_at) node.append(el('p','kdsu-due','Hämtning '+clock(row.due_at)));
+            if (row.kind==='external' && !row.accepted && row.state!=='archived') node.append(el('p','kdsu-alert','Acceptera ordern i '+channelLabel(row.provider)+'s handlarapp.'));
+            if (row.integration_error || row.integration_pending) node.append(el('p','kdsu-alert','Inväntar uppdatering från leveranstjänsten. Åtgärder är tillfälligt låsta.'));
             if (row.state === 'blocked') node.append(el('p', 'kdsu-alert', row.reason==='unreadable_fields' ? 'STOPPAD · Tillval kunde inte läsas fullständigt. Kontrollera WooCommerce-ordern.' : 'STOPPAD · Ordern saknar läsbara orderrader. Kontrollera WooCommerce.'));
-            if (!row.payment_recorded && row.state!=='archived') node.append(el('p','kdsu-payment','Betalning inte bekräftad i WooCommerce'));
+            if (row.kind!=='external' && !row.payment_recorded && row.state!=='archived') node.append(el('p','kdsu-payment','Betalning inte bekräftad i WooCommerce'));
             if (row.changed && row.state !== 'blocked') node.append(el('p', 'kdsu-alert', 'Ändrad eller återställd order — kontrollera hela innehållet.'));
             if (Number(row.refunded_total) > 0) node.append(el('p', 'kdsu-alert', 'Återbetalt: ' + row.refunded_total + ' ' + row.currency + '. Kontrollera vad som ska tillagas.'));
             const items = el('ul', 'kdsu-items');
@@ -141,18 +150,20 @@
             }
             node.append(items);
             for (const detail of row.custom_fields || []) node.append(el('div','kdsu-order-field',detail.label+': '+detail.value));
+            if (row.courier_notice) node.append(el('p','kdsu-alert',row.courier_notice));
             if (row.note) node.append(el('div', 'kdsu-note', row.note));
             const actions = el('div', 'kdsu-actions');
             if (row.state === 'blocked') actions.append(el('small','','Åtgärda eller avbryt ordern i WooCommerce.'));
             else if (row.state === 'preparing') actions.append(action(row.changed ? 'Bekräfta ändring' : 'Klar', row.changed ? 'acknowledge' : 'ready', row));
             else if (row.state === 'ready') {
-                actions.append(action('Utlämnad', 'handover', row), action('Tillbaka', 'restore', row, true));
+                actions.append(action(row.kind==='external'?'Utlämnad i KDS':'Utlämnad', 'handover', row));
+                if(row.kind!=='external') actions.append(action('Tillbaka', 'restore', row, true));
             } else if (row.state === 'archived' && row.can_restore) actions.append(action('Återställ', 'restore', row, true));
             else if (row.state === 'archived') actions.append(el('small', '', 'Återöppna i WooCommerce för att återställa till köket.'));
             const print = el('button', 'kdsu-print secondary', 'Skriv ut');
             print.type = 'button'; print.dataset.print = row.id;
             actions.append(print); node.append(actions);
-            const times = ['Woo: ' + (row.woo_status_label || row.woo_status), 'ID ' + row.id];
+            const times = [(row.kind==='external' ? channelLabel(row.provider)+': ' : 'Woo: ') + (row.woo_status_label || row.woo_status), (row.kind==='external' ? 'Externt ID '+row.external_id : 'ID '+row.id)];
             if (row.ready_at) times.push('Klar ' + clock(row.ready_at));
             if (row.closed_at) times.push('Arkiv ' + clock(row.closed_at));
             node.append(el('div', 'kdsu-times', times.join(' · ')));
@@ -163,7 +174,15 @@
                     link.href=url.href; link.target='_blank'; link.rel='noopener noreferrer'; node.append(link);
                 }
             } catch (_) { /* Missing link never creates a guessed order URL. */ }
+            if(row.integration_error || row.integration_pending) node.querySelectorAll('[data-command], [data-print]').forEach(b=>{b.dataset.locked='true';b.disabled=true;});
+            if(row.kind==='external' && !row.accepted) node.querySelectorAll('[data-command="ready"]').forEach(b=>{b.dataset.locked='true';b.disabled=true;});
             return node;
+        }
+        function ages() {
+            root.querySelectorAll('[data-created]').forEach(node=>{
+                const minutes=Math.max(0,Math.floor(((Date.now()+S.serverDelta)/1000-Number(node.dataset.created))/60));
+                node.textContent=minutes<1?'Ny beställning':minutes+' min i köket';node.dataset.late=String(minutes>=20);
+            });
         }
         // Reuse unchanged DOM nodes: no flashing cards, lost focus or scroll reset on each poll.
         const rendered = new WeakMap();
@@ -249,18 +268,25 @@
                 validateFeed(data,boot,readId,S.view==='board');
                 S.rows = new Map(data.orders.map(row => [row.id, row]));
                 if (S.readError) { error(''); S.readError = false; }
-                S.connected = true; S.lastSync = Date.now(); S.serverDelta = data.server_time * 1000 - S.lastSync; S.failures = 0;
+                S.incomplete=data.complete===false; S.connected = true; S.lastSync = Date.now(); S.serverDelta = data.server_time * 1000 - S.lastSync; S.failures = 0;
                 if (S.view === 'board') {
                     S.poll = data.poll_seconds || S.poll;
-                    slot('backfill').hidden = !data.backfill_remaining;
-                    slot('backfill').textContent = `Läser in tidigare ordrar: ${data.backfill_remaining || 0} återstår. Vyn är ännu inte komplett.`;
+                    slot('backfill').hidden = !data.backfill_remaining && !data.issues?.length;
+                    slot('backfill').textContent = data.issues?.length ? 'Vyn är ofullständig. '+data.issues.length+' orderproblem: '+data.issues.map(i=>(i.id>0?'Woo #'+i.id:i.id<0?'Extern #'+Math.abs(i.id):'Integration')+' ('+i.code+')').join(', ')+'. Läsbara ordrar visas nedan.' : `Läser in tidigare ordrar: ${data.backfill_remaining || 0} återstår. Vyn är ännu inte komplett.`;
                     renderBoard(data.orders);
                     const ids = new Set(data.orders.map(row => row.id));
                     if (S.sound && S.seen && [...ids].some(id => !S.seen.has(id))) beep();
-                    S.seen = ids;
+                    S.seen = ids; ages();
                 } else {
                     S.page = data.page; S.max = data.max_pages;
                     renderList(slot('archive'), data.orders);
+                    if(slot('external-archive')) {
+                        const external=await request('external/archive',{range:S.range,q:S.q});
+                        if(generation!==S.generation)return;
+                        renderList(slot('external-archive'),external.orders);
+                        external.orders.forEach(row=>S.rows.set(row.id,row));
+                        if(external.truncated)error('Extern historik visar de senaste 500 ordrarna. Välj en kortare period.');
+                    }
                     slot('page').textContent = `Sida ${S.page} av ${S.max} · ${data.total} ordrar`;
                     control('prev').disabled = S.page <= 1; control('next').disabled = S.page >= S.max;
                 }
@@ -291,7 +317,7 @@
             if (!row) return;
             const isHandover=button.dataset.command==='handover';
             let confirmUnpaid=false;
-            if (isHandover && !row.payment_recorded) {
+            if (isHandover && row.kind!=='external' && !row.payment_recorded) {
                 confirmUnpaid=window.confirm('Betalningen är inte bekräftad i WooCommerce. Är ordern ändå betald eller godkänd för utlämning? Utlämnad sätter ordern till Färdigbehandlad men debiterar inte kunden.');
                 if (!confirmUnpaid) return;
             }
@@ -299,7 +325,7 @@
             if (S.reading) S.reading.abort(); clearTimeout(S.timer); connectivity(); error('');
             const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 15000);
             try {
-                const data=await request(`orders/${row.id}/actions`, {}, { action: button.dataset.command, request_id: requestId(), revision: row.revision, token: row.token, confirm_unpaid:confirmUnpaid }, controller.signal);
+                const data=await request(row.kind==='external'?`external/${Math.abs(row.id)}/actions`:`orders/${row.id}/actions`, {}, { action: button.dataset.command, request_id: requestId(), revision: row.revision, token: row.token, confirm_unpaid:confirmUnpaid }, controller.signal);
                 if (data?.order?.id!==row.id || (isHandover && data.order.woo_status!=='completed')) throw new Error('Orderändringen kunde inte bekräftas i WooCommerce. Kontrollera ordern.');
             } catch (err) {
                 error(err.name === 'AbortError' ? 'Ingen bekräftelse mottogs. Åtgärden kan ha sparats — kontrollera orderns aktuella läge innan du försöker igen.' : err.message);
@@ -319,6 +345,18 @@
             if ('origin' in button.dataset) { S.origin=button.dataset.origin; renderBoard([...S.rows.values()]); connectivity(); return; }
             if ('channel' in button.dataset) { S.channel = button.dataset.channel; renderBoard([...S.rows.values()]); connectivity(); return; }
             if (button.dataset.print) {
+                if(stale() || S.mutating || button.dataset.locked==='true')return;
+                if(boot.printing?.enabled) {
+                    const id=Number(button.dataset.print);
+                    if(printedOrders.has(id) && !window.confirm('Ett utskriftsförsök har redan gjorts för detta kort. Kontrollera BizPrint. Vill du beställa en ny kopia?'))return;
+                    printedOrders.add(id);S.mutating=true;connectivity();
+                    try {
+                        const result=await request('print',{}, {order_id:Number(button.dataset.print),request_id:requestId()});
+                        const feedback=slot('feedback');if(feedback){feedback.textContent='Utskriften är mottagen av BizPrint · jobb '+result.job_id+'.';feedback.hidden=false;}
+                    } catch(err){error(err.message);}
+                    finally{S.mutating=false;connectivity();}
+                    return;
+                }
                 root.querySelectorAll('.kdsu-print-target').forEach(n => n.classList.remove('kdsu-print-target'));
                 button.closest('.kdsu-card').classList.add('kdsu-print-target');
                 document.body.classList.add('yookds-printing'); window.print(); return;
@@ -389,6 +427,7 @@
                 const url=nxLink(form.elements.base.value || boot.site,values);
                 form.elements.result.value=url; slot('link-error').textContent='';
                 const box=slot('qr'); box.replaceChildren();
+                if (!window.YooKDSQR) throw new Error('QR-biblioteket kunde inte laddas. Ladda om sidan och kontrollera cacheinställningarna.');
                 if (window.YooKDSQR) {
                     const svg=window.YooKDSQR.svg(url); box.innerHTML=svg; // Trusted local encoder outputs only path coordinates.
                     const save=control('save-qr'); save.href='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg); save.download='yookds-qr.svg'; save.hidden=false;
@@ -408,7 +447,7 @@
         window.addEventListener('online', () => { S.failures = 0; refresh(); });
         window.addEventListener('offline', () => { S.connected = false; connectivity(); });
         document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(S.timer); else refresh(); });
-        setInterval(connectivity, 1000);
+        setInterval(()=>{connectivity();ages();}, 1000);
         view();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
